@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+input,
+textarea,
+select,
+option {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: #6b7280 !important;
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: #111827;
+  background-color: #f9fafb;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+.react-datepicker {
+  background-color: white !important;
+  color: black !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.react-datepicker__header {
+  background-color: #f9fafb !important;
+  color: black !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header {
+  color: black !important;
+}
+
+.react-datepicker__day-name {
+  color: #6b7280 !important;
+}
+
+.react-datepicker__day {
+  color: black !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+.react-datepicker__day:hover {
+  background-color: #dbeafe !important;
+}

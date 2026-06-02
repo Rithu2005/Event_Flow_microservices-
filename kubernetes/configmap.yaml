@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventflow-config
+  namespace: eventflow
+data:
+  EUREKA_SERVER: "http://discovery-service:8761/eureka/"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  AUTH_DB_URL: "jdbc:mysql://mysql-auth:3306/eventflow_auth"
+  EVENT_DB_URL: "jdbc:mysql://mysql-event:3306/eventflow_event"
+  TICKET_DB_URL: "jdbc:mysql://mysql-ticket:3306/eventflow_ticket"
+  JWT_EXPIRATION: "86400000"

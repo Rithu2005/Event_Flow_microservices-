@@ -1,0 +1,84 @@
+pipeline {
+    agent any
+
+    parameters {
+        choice(name: 'SERVICE_NAME', choices: ['all', 'auth-service', 'event-service', 'ticket-service', 'api-gateway', 'discovery-service', 'frontend'], description: 'Select the service to build and deploy')
+        string(name: 'DOCKER_TAG', defaultValue: 'latest', description: 'Image tag')
+    }
+
+    environment {
+        AWS_ACCOUNT_ID = 'your-account-id'
+        AWS_REGION = 'us-east-1'
+        ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        K8S_NAMESPACE = 'eventflow'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build & Test') {
+            steps {
+                script {
+                    if (params.SERVICE_NAME == 'all' || params.SERVICE_NAME != 'frontend') {
+                        sh 'mvn clean install -DskipTests'
+                    }
+                }
+            }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                script {
+                    def services = params.SERVICE_NAME == 'all' ? 
+                        ['auth-service', 'event-service', 'ticket-service', 'api-gateway', 'discovery-service', 'frontend'] : 
+                        [params.SERVICE_NAME]
+
+                    services.each { service ->
+                        sh "docker build -t ${ECR_REGISTRY}/eventflow/${service}:${params.DOCKER_TAG} ./${service}"
+                        sh "aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}"
+                        sh "docker push ${ECR_REGISTRY}/eventflow/${service}:${params.DOCKER_TAG}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                script {
+                    sh "aws eks update-kubeconfig --name eventflow-cluster --region ${AWS_REGION}"
+                    
+                    if (params.SERVICE_NAME == 'all') {
+                        sh "kubectl apply -f kubernetes/"
+                    } else {
+                        sh "kubectl apply -f kubernetes/${params.SERVICE_NAME}.yaml"
+                    }
+                }
+            }
+        }
+
+        stage('Health Verification') {
+            steps {
+                script {
+                    sh "kubectl get pods -n ${K8S_NAMESPACE}"
+                    sh "kubectl rollout status deployment/${params.SERVICE_NAME} -n ${K8S_NAMESPACE}"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo "Pipeline completed successfully!"
+        }
+        failure {
+            echo "Pipeline failed. Please check logs."
+        }
+    }
+}
