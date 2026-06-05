@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Infrastructure
   mysql-auth:
     image: mysql:8.0
     container_name: mysql-auth
@@ -66,27 +65,6 @@ services:
       - eventflow-network
     restart: always
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    volumes:
-      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-    networks:
-      - eventflow-network
-    restart: always
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    networks:
-      - eventflow-network
-    restart: always
-
-  # Microservices
   discovery-service:
     build: ./discovery-service
     container_name: discovery-service
@@ -101,6 +79,8 @@ services:
     container_name: api-gateway
     ports:
       - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-auth:3306/eventflow_auth
     depends_on:
       - discovery-service
     networks:
@@ -112,6 +92,8 @@ services:
     container_name: auth-service
     ports:
       - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-auth:3306/eventflow_auth
     depends_on:
       - discovery-service
       - mysql-auth
@@ -135,6 +117,9 @@ services:
     container_name: event-service
     ports:
       - "8084:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-event:3306/eventflow_event
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - discovery-service
       - mysql-event
@@ -148,6 +133,9 @@ services:
     container_name: ticket-service
     ports:
       - "8086:8086"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-ticket:3306/eventflow_ticket
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - discovery-service
       - mysql-ticket
@@ -161,6 +149,8 @@ services:
     container_name: notification-service
     ports:
       - "8085:8085"
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     depends_on:
       - discovery-service
       - kafka
