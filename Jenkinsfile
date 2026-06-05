@@ -1,90 +1,136 @@
 pipeline {
-    agent any
+agent any
 
-    environment {
-        DOCKER_COMPOSE = 'docker-compose'
+```
+stages {
+
+    stage('Checkout') {
+        steps {
+            checkout scm
+        }
     }
 
-    stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
+    stage('Verify Environment') {
+        steps {
+            sh '''
+            echo "===== JAVA ====="
+            java -version || true
+
+            echo "===== MAVEN ====="
+            mvn -version || true
+
+            echo "===== DOCKER ====="
+            docker --version || true
+
+            echo "===== DOCKER COMPOSE ====="
+            docker compose version || true
+
+            echo "===== CURL ====="
+            curl --version || true
+            '''
         }
+    }
 
-        stage('Build & Install') {
-            steps {
-                sh 'mvn clean install -DskipTests'
-            }
+    stage('Build Services') {
+        steps {
+            sh '''
+            mvn clean install -DskipTests
+            '''
         }
+    }
 
-        stage('Run Unit Tests') {
-            steps {
-                sh 'mvn test'
-            }
+    stage('Run Tests') {
+        steps {
+            sh '''
+            mvn test
+            '''
         }
+    }
 
-        stage('Docker Build') {
-            steps {
-                sh "${DOCKER_COMPOSE} build"
-            }
+    stage('Build Docker Images') {
+        steps {
+            sh '''
+            docker compose build
+            '''
         }
+    }
 
-        stage('Deploy') {
-            steps {
-                sh "${DOCKER_COMPOSE} down"
-                sh "${DOCKER_COMPOSE} up -d"
-            }
+    stage('Deploy Containers') {
+        steps {
+            sh '''
+            docker compose down || true
+            docker compose up -d
+            '''
         }
+    }
 
-        stage('Verify Health') {
-            steps {
-                script {
-                    def services = [
-                        'discovery-service': 8761,
-                        'api-gateway': 8080,
-                        'auth-service': 8081,
-                        'user-service': 8083,
-                        'event-service': 8084,
-                        'notification-service': 8085,
-                        'ticket-service': 8086
-                    ]
+    stage('Health Check') {
+        steps {
+            script {
 
-                    services.each { name, port ->
-                        echo "Verifying health for ${name} on port ${port}..."
-                        def healthy = false
-                        for (int i = 0; i < 10; i++) {
-                            try {
-                                def response = sh(script: "curl -s -o /dev/null -w '%{http_code}' http://localhost:${port}/actuator/health", returnStdout: true).trim()
-                                if (response == '200') {
-                                    echo "${name} is UP!"
-                                    healthy = true
-                                    break
-                                }
-                            } catch (Exception e) {
-                                // Ignore and retry
+                def services = [
+                    [name: 'discovery-service', port: '8761'],
+                    [name: 'api-gateway', port: '8080'],
+                    [name: 'auth-service', port: '8081'],
+                    [name: 'user-service', port: '8083'],
+                    [name: 'event-service', port: '8084'],
+                    [name: 'notification-service', port: '8085'],
+                    [name: 'ticket-service', port: '8086']
+                ]
+
+                services.each { service ->
+
+                    echo "Checking ${service.name}"
+
+                    boolean healthy = false
+
+                    for (int i = 0; i < 10; i++) {
+
+                        try {
+
+                            def status = sh(
+                                script: """
+                                curl -s -o /dev/null -w "%{http_code}" http://host.docker.internal:${service.port}/actuator/health
+                                """,
+                                returnStdout: true
+                            ).trim()
+
+                            if (status == "200") {
+                                healthy = true
+                                echo "${service.name} is healthy"
+                                break
                             }
-                            echo "Waiting for ${name}... (Attempt ${i+1}/10)"
-                            sleep 10
+
+                        } catch(Exception e) {
+                            echo "Waiting for ${service.name}"
                         }
-                        if (!healthy) {
-                            error "${name} failed health check!"
-                        }
+
+                        sleep 10
+                    }
+
+                    if (!healthy) {
+                        error("${service.name} failed health check")
                     }
                 }
             }
         }
     }
+}
 
-    post {
-        always {
-            cleanWs()
-        }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Check logs for details.'
-        }
+post {
+
+    success {
+        echo 'EventFlow deployment successful!'
     }
+
+    failure {
+        echo 'EventFlow deployment failed!'
+    }
+
+    always {
+        cleanWs()
+    }
+}
+```
+
 }
