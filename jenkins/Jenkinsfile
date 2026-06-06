@@ -1,52 +1,47 @@
 pipeline {
-    agent any
+agent any
 
-    stages {
+stages {
 
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Build Maven') {
-            steps {
-                sh 'mvn clean install -DskipTests'
-            }
-        }
-
-        stage('Build Docker Images') {
-            steps {
-                sh 'docker compose build'
-            }
-        }
-
-        stage('Deploy Containers') {
-            steps {
-                sh 'docker compose down'
-                sh 'docker compose up -d'
-            }
-        }
-
-        stage('Verify Deployment') {
-            steps {
-                sh 'docker ps'
-            }
+    stage('Checkout') {
+        steps {
+            checkout scm
         }
     }
 
-    post {
-
-        success {
-            echo 'EventFlow CI/CD Pipeline Success!'
-        }
-
-        failure {
-            echo 'Pipeline Failed!'
-        }
-
-        always {
-            cleanWs()
+    stage('Build Maven') {
+        steps {
+            sh 'mvn clean install -DskipTests'
         }
     }
+
+    stage('Verify Docker') {
+        steps {
+            sh 'docker --version'
+            sh 'docker ps'
+        }
+    }
+
+    stage('Verify Build Artifacts') {
+        steps {
+            sh 'find . -name "*.jar"'
+        }
+    }
+}
+
+post {
+    success {
+        echo 'EventFlow CI/CD Pipeline Success!'
+    }
+
+    failure {
+        echo 'Pipeline Failed!'
+    }
+
+    always {
+        cleanWs()
+    }
+}
+
+
 }

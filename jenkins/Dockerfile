@@ -3,7 +3,7 @@ FROM jenkins/jenkins:lts
 USER root
 
 RUN apt-get update && \
-	apt-get install -y curl wget unzip docker.io maven && \
-	apt-get clean
+    apt-get install -y maven docker.io && \
+    apt-get clean
 
 USER jenkins
